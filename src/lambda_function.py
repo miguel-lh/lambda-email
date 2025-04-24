@@ -21,7 +21,8 @@ def get_secret(secret_name):
 
 
 def lambda_handler(event, context):
-    api_key = get_secret("test/email/Mailer")["MAILER_KEY"]
+    api_key = get_secret("test/email/Mailer")
+    api_key = json.loads(api_key)["MAILER_KEY"]
 
     try:
         body = json.loads(event.get("body", "{}"))
@@ -37,7 +38,8 @@ def lambda_handler(event, context):
             "body": json.dumps({"error": "Missing 'users' in request body"}),
         }
 
-    users = body.get("users")
+    users: list = body.get("users", None)
+
     if not users:
         return {
             "statusCode": 400,
@@ -61,8 +63,6 @@ def lambda_handler(event, context):
         exit(1)
 
     client = MailerLiteClient(api_key)
-
-    users: list = event["users"]
 
     # unique name
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")[:-3]
