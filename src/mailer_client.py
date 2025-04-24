@@ -1,3 +1,4 @@
+import re
 import requests
 
 
@@ -127,13 +128,39 @@ class MailerLiteClient:
         user_available = self.user_exists(email)
 
         if user_available:
-            return user_available
+            status_code, result = user_available
+            self.check_status_code(status_code)
+
+            user_data_name = result["data"]["fields"]["name"]
+
+            if user_data_name == name:
+                return user_available
+
+            user_id = result["data"]["id"]
+            return self.update_user(user_id, name=name)
 
         data = {}
         data["email"] = email
         data["fields"] = {"name": name, "last_name": last_name}
 
         return self.post("https://connect.mailerlite.com/api/subscribers", data)
+
+    # HACK: last_name not included
+    def update_user(self, user_id: str, name: str) -> tuple[int, dict]:
+        data = {}
+        data["fields"] = {"name": name}
+
+        try:
+            response = requests.put(
+                f"https://connect.mailerlite.com/api/subscribers/{user_id}",
+                headers=self.headers,
+                json=data,
+            )
+        except Exception as error:
+            print(f"{error=}")
+            # NOTE: return a status code if server has an error? 3xx
+
+        return response.status_code, response.json()
 
     def user_suscribed_to_group(self, user_id: str, group_id) -> dict | None:
         """
